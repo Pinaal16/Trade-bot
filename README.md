@@ -55,7 +55,26 @@ export ANTHROPIC_API_KEY=sk-ant-...
 
 Edit `config.yaml` to set your watchlist, account equity, and risk limits.
 
-## Usage
+## Usage — web dashboard (easiest)
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+export ALPACA_API_KEY=...  ALPACA_SECRET_KEY=...   # paper keys to start
+python webapp.py
+```
+
+Your browser opens on **http://localhost:5000** with:
+
+- your account equity, today's P/L, cash and buying power
+- a **Run scan** button (edit the symbol list right in the page)
+- a live progress log while the scan runs
+- one colour-coded card per symbol — ✅ approved, 👁️ watchlist, ❌ rejected,
+  ➖ no setup — each showing entry / target / stop / share count / max loss
+- an **Approve & place order** button on approved setups only; nothing is
+  ordered until you click it
+- your open positions and open orders, refreshed automatically
+
+## Usage — command line
 
 ```bash
 # One full pipeline pass over the watchlist
@@ -78,7 +97,8 @@ Each run writes a JSON report to `reports/` and prints a decision summary.
 
 ## Trading mode (approve-to-execute)
 
-With `--trade` (or `broker.enabled: true` in config), every ✅ APPROVED setup is
+The web dashboard always runs in this mode. On the command line, use `--trade`
+(or `broker.enabled: true` in config): every ✅ APPROVED setup is
 shown to you in full — entry, target, stop, share count, max dollar loss, and
 the rationale — and you answer **y/N**. Only on "y" does the bot submit the
 order to [Alpaca](https://alpaca.markets) as a **bracket order**: the entry, the
@@ -110,6 +130,8 @@ to keep the losing trades small, not to prevent them.
 | RISK     | `trade_bot/risk.py`     | Deterministic Python — no LLM in the risk path |
 | DECISION | `trade_bot/decision.py` | Combines plan confidence + risk verdict |
 | MONITOR  | `trade_bot/monitor.py`  | Interval loop around the pipeline |
+| UI       | `webapp.py` + `templates/` | Flask dashboard — scan, review, approve |
+| BROKER   | `trade_bot/broker.py`   | Alpaca bracket orders (paper by default) |
 
 Notes on the Claude integration:
 

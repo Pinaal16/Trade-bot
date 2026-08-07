@@ -42,6 +42,53 @@ class AlpacaBroker:
         exposure = abs(float(acct.long_market_value)) + abs(float(acct.short_market_value))
         return equity, exposure
 
+    def account_summary(self) -> dict:
+        """Richer account view for the dashboard."""
+        acct = self.client.get_account()
+        return {
+            "mode": "PAPER" if self.paper else "LIVE",
+            "equity": float(acct.equity),
+            "cash": float(acct.cash),
+            "buying_power": float(acct.buying_power),
+            "last_equity": float(acct.last_equity),
+            "day_pl": float(acct.equity) - float(acct.last_equity),
+        }
+
+    def positions(self) -> list[dict]:
+        return [
+            {
+                "symbol": p.symbol,
+                "qty": float(p.qty),
+                "avg_entry": float(p.avg_entry_price),
+                "current_price": float(p.current_price or 0),
+                "market_value": float(p.market_value or 0),
+                "unrealized_pl": float(p.unrealized_pl or 0),
+                "unrealized_pl_pct": float(p.unrealized_plpc or 0) * 100,
+            }
+            for p in self.client.get_all_positions()
+        ]
+
+    def open_orders(self) -> list[dict]:
+        from alpaca.trading.enums import QueryOrderStatus
+        from alpaca.trading.requests import GetOrdersRequest
+
+        orders = self.client.get_orders(
+            GetOrdersRequest(status=QueryOrderStatus.OPEN, limit=50)
+        )
+        return [
+            {
+                "id": str(o.id),
+                "symbol": o.symbol,
+                "side": str(getattr(o.side, "value", o.side)),
+                "qty": float(o.qty or 0),
+                "type": str(getattr(o.order_type, "value", o.order_type)),
+                "limit_price": float(o.limit_price) if o.limit_price else None,
+                "status": str(getattr(o.status, "value", o.status)),
+                "submitted_at": o.submitted_at.isoformat() if o.submitted_at else None,
+            }
+            for o in orders
+        ]
+
     def place_bracket(self, symbol: str, qty: int, direction: str,
                       entry: float, target: float, stop: float) -> str:
         """Submit a limit bracket order and return the order id."""

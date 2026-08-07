@@ -15,7 +15,7 @@ import sys
 
 from trade_bot.config import load_config
 from trade_bot.monitor import monitor
-from trade_bot.pipeline import run_pipeline
+from trade_bot.pipeline import console_approver, run_pipeline
 
 
 def main() -> int:
@@ -50,13 +50,16 @@ def main() -> int:
             print(f"Broker setup failed: {exc}", file=sys.stderr)
             return 1
 
+    approver = console_approver(config.broker.paper) if broker else None
+
     if args.symbol:
         symbols = [s.upper() for s in args.symbol]
-        run_pipeline(config, symbols=symbols, news_enabled=news_enabled, broker=broker)
+        run_pipeline(config, symbols=symbols, news_enabled=news_enabled,
+                     broker=broker, approver=approver)
     elif args.loop:
-        monitor(config, news_enabled=news_enabled, broker=broker)
+        monitor(config, news_enabled=news_enabled, broker=broker, approver=approver)
     else:
-        run_pipeline(config, news_enabled=news_enabled, broker=broker)
+        run_pipeline(config, news_enabled=news_enabled, broker=broker, approver=approver)
     return 0
 
 
