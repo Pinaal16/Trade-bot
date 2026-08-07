@@ -39,11 +39,18 @@ class NewsConfig:
 
 
 @dataclasses.dataclass
+class BrokerConfig:
+    enabled: bool = False
+    paper: bool = True
+
+
+@dataclasses.dataclass
 class Config:
     model: ModelConfig
     account: AccountConfig
     risk: RiskConfig
     news: NewsConfig
+    broker: BrokerConfig
     watchlist: list[str]
     interval_minutes: int = 30
 
@@ -55,6 +62,7 @@ def load_config(path: str | Path = "config.yaml") -> Config:
         account=AccountConfig(**raw.get("account", {})),
         risk=RiskConfig(**raw.get("risk", {})),
         news=NewsConfig(**raw.get("news", {})),
+        broker=BrokerConfig(**raw.get("broker", {})),
         watchlist=[str(s).upper() for s in raw.get("watchlist", [])],
         interval_minutes=int(raw.get("monitor", {}).get("interval_minutes", 30)),
     )

@@ -28,6 +28,11 @@ risk:
 monitor:
   interval_minutes: 30     # how often the --loop mode re-scans
 
+broker:
+  enabled: false           # or pass --trade on the command line
+  paper: true              # KEEP true until you have weeks of paper results.
+                           # false = real money; requires typing LIVE at startup.
+
 news:
   enabled: true            # set false to skip web search entirely
   max_searches: 3          # web_search max_uses per symbol

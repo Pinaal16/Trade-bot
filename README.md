@@ -69,9 +69,37 @@ python main.py --symbol NVDA
 
 # Skip the news step (no web search, faster/cheaper)
 python main.py --no-news
+
+# Trading mode: you approve each trade, the bot places the order (paper by default)
+python main.py --trade
 ```
 
 Each run writes a JSON report to `reports/` and prints a decision summary.
+
+## Trading mode (approve-to-execute)
+
+With `--trade` (or `broker.enabled: true` in config), every ✅ APPROVED setup is
+shown to you in full — entry, target, stop, share count, max dollar loss, and
+the rationale — and you answer **y/N**. Only on "y" does the bot submit the
+order to [Alpaca](https://alpaca.markets) as a **bracket order**: the entry, the
+take-profit at the target, and the stop-loss are all attached at submission, so
+your maximum loss is fixed before the trade is live.
+
+Setup:
+
+1. Create a free Alpaca account and generate **paper-trading** API keys.
+2. `export ALPACA_API_KEY=... ALPACA_SECRET_KEY=...`
+3. `python main.py --trade`
+
+In trading mode, position sizing uses your **real account equity and open
+exposure** from Alpaca instead of the numbers in `config.yaml` — so as you
+deposit more (e.g. adding to the account daily), sizes scale automatically.
+
+Paper trading is the default and the config warns against switching it off.
+Going live requires setting `broker.paper: false` **and** typing `LIVE` at
+startup. Trade paper for several weeks first and review the reports before
+risking real money — nothing here guarantees profit; the risk engine's job is
+to keep the losing trades small, not to prevent them.
 
 ## Architecture
 

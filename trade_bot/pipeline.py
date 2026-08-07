@@ -11,8 +11,9 @@ import traceback
 from pathlib import Path
 
 from .analyst import Analyst, RefusalError
+from .broker import AlpacaBroker
 from .config import Config
-from .decision import Decision, decide
+from .decision import APPROVED, Decision, decide
 from .market_data import fetch_snapshot
 from .risk import RiskEngine
 
@@ -20,9 +21,18 @@ REPORTS_DIR = Path("reports")
 
 
 def run_pipeline(config: Config, symbols: list[str] | None = None,
-                 news_enabled: bool | None = None) -> list[Decision]:
+                 news_enabled: bool | None = None,
+                 broker: AlpacaBroker | None = None) -> list[Decision]:
     symbols = symbols or config.watchlist
     use_news = config.news.enabled if news_enabled is None else news_enabled
+
+    if broker:
+        # Size positions from the real account, not the config defaults.
+        equity, exposure = broker.account_state()
+        config.account.equity = equity
+        config.account.open_exposure = exposure
+        mode = "PAPER" if broker.paper else "LIVE"
+        print(f"💼 {mode} account: equity ${equity:,.2f}, open exposure ${exposure:,.2f}")
 
     analyst = Analyst(config.model)
     risk_engine = RiskEngine(config.risk, config.account)
@@ -62,9 +72,14 @@ def run_pipeline(config: Config, symbols: list[str] | None = None,
             decision = Decision(symbol, "NO_SETUP", f"error: {exc}")
 
         entry["decision"] = {"verdict": decision.verdict, "reason": decision.reason}
+        print(f"   {decision.line()}")
+
+        if broker and decision.verdict == APPROVED:
+            order_id = _approve_and_execute(broker, symbol, entry["plan"], entry["risk"])
+            entry["order_id"] = order_id
+
         results.append(entry)
         decisions.append(decision)
-        print(f"   {decision.line()}")
 
     report_path = _write_report(results)
     print(f"\n📝 Report written to {report_path}")
@@ -73,6 +88,37 @@ def run_pipeline(config: Config, symbols: list[str] | None = None,
         print(decision.line())
     print("\n⚠️  Human review required. Research output only — not financial advice.")
     return decisions
+
+
+def _approve_and_execute(broker: AlpacaBroker, symbol: str,
+                         plan: dict, risk: dict) -> str | None:
+    """Show the full trade and ask for explicit approval before submitting."""
+    mode = "PAPER" if broker.paper else "⚠️ LIVE"
+    print(f"\n   ── Trade proposal ({mode}) ─────────────────")
+    print(f"   {symbol} {plan['direction'].upper()} — {plan.get('setup_type')}")
+    print(f"   Entry {plan['entry']}, target {plan['target']}, stop {plan['stop']}")
+    print(f"   Size: {risk['shares']} shares (~${risk['position_value']:,.0f}), "
+          f"max loss at stop ${risk['dollar_risk']:,.0f}")
+    print(f"   Invalidation: {plan.get('invalidation')}")
+    print(f"   Why: {plan.get('rationale')}")
+    try:
+        answer = input("   Approve this trade? [y/N] ").strip().lower()
+    except EOFError:
+        answer = ""
+    if answer not in ("y", "yes"):
+        print("   ⏭️  Skipped — no order placed.")
+        return None
+    try:
+        order_id = broker.place_bracket(
+            symbol=symbol, qty=risk["shares"], direction=plan["direction"],
+            entry=plan["entry"], target=plan["target"], stop=plan["stop"],
+        )
+        print(f"   📬 Bracket order submitted (id {order_id}) — "
+              "entry + take-profit + stop-loss all attached.")
+        return order_id
+    except Exception as exc:
+        print(f"   ⚠️  Order failed: {exc}")
+        return None
 
 
 def _write_report(results: list[dict]) -> Path:

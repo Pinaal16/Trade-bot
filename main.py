@@ -24,6 +24,9 @@ def main() -> int:
     parser.add_argument("--symbol", action="append", help="scan specific symbol(s) instead of the watchlist")
     parser.add_argument("--loop", action="store_true", help="run the 24/7 monitoring loop")
     parser.add_argument("--no-news", action="store_true", help="skip the news scan (no web search)")
+    parser.add_argument("--trade", action="store_true",
+                        help="enable trading mode: APPROVED setups are shown for your y/N "
+                             "approval and, if approved, placed as bracket orders via Alpaca")
     args = parser.parse_args()
 
     if not os.environ.get("ANTHROPIC_API_KEY") and not os.environ.get("ANTHROPIC_AUTH_TOKEN"):
@@ -33,13 +36,27 @@ def main() -> int:
     config = load_config(args.config)
     news_enabled = False if args.no_news else None
 
+    broker = None
+    if args.trade or config.broker.enabled:
+        from trade_bot.broker import AlpacaBroker, BrokerError
+        if not config.broker.paper:
+            print("⚠️  LIVE trading is configured (broker.paper: false). Real money is at risk.")
+            if input("Type LIVE to confirm, anything else to abort: ").strip() != "LIVE":
+                print("Aborted.")
+                return 1
+        try:
+            broker = AlpacaBroker(paper=config.broker.paper)
+        except BrokerError as exc:
+            print(f"Broker setup failed: {exc}", file=sys.stderr)
+            return 1
+
     if args.symbol:
         symbols = [s.upper() for s in args.symbol]
-        run_pipeline(config, symbols=symbols, news_enabled=news_enabled)
+        run_pipeline(config, symbols=symbols, news_enabled=news_enabled, broker=broker)
     elif args.loop:
-        monitor(config, news_enabled=news_enabled)
+        monitor(config, news_enabled=news_enabled, broker=broker)
     else:
-        run_pipeline(config, news_enabled=news_enabled)
+        run_pipeline(config, news_enabled=news_enabled, broker=broker)
     return 0
 
 

@@ -9,7 +9,7 @@ from .config import Config
 from .pipeline import run_pipeline
 
 
-def monitor(config: Config, news_enabled: bool | None = None) -> None:
+def monitor(config: Config, news_enabled: bool | None = None, broker=None) -> None:
     interval = config.interval_minutes * 60
     print(f"👀 Monitoring {len(config.watchlist)} symbols every "
           f"{config.interval_minutes} minutes. Ctrl-C to stop.")
@@ -17,7 +17,7 @@ def monitor(config: Config, news_enabled: bool | None = None) -> None:
         started = datetime.datetime.now(datetime.timezone.utc)
         print(f"\n===== Pass started {started.isoformat(timespec='seconds')} =====")
         try:
-            run_pipeline(config, news_enabled=news_enabled)
+            run_pipeline(config, news_enabled=news_enabled, broker=broker)
         except KeyboardInterrupt:
             raise
         except Exception as exc:
