@@ -42,6 +42,15 @@ class MarketSnapshot:
         )
 
 
+def fetch_history(symbol: str, years: float = 2.0):
+    """Daily bars for backtesting. Returns None if the symbol has too little data."""
+    period = f"{max(1, int(round(years)))}y"
+    hist = yf.Ticker(symbol).history(period=period, interval="1d", auto_adjust=True)
+    if hist.empty or len(hist) < 80:
+        return None
+    return hist
+
+
 def fetch_snapshot(symbol: str) -> MarketSnapshot:
     """Fetch ~1 year of daily bars and compute the snapshot.
 

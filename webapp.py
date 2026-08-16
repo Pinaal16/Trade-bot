@@ -17,6 +17,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
+from trade_bot import journal
 from trade_bot.broker import AlpacaBroker, BrokerError
 from trade_bot.config import load_config
 from trade_bot.pipeline import place_order, run_pipeline
@@ -73,11 +74,13 @@ def api_account():
     if not broker:
         return jsonify({"connected": False, "error": _broker_error})
     try:
+        journal.reconcile(broker)
         return jsonify({
             "connected": True,
             "account": broker.account_summary(),
             "positions": broker.positions(),
             "orders": broker.open_orders(),
+            "journal": journal.stats(),
         })
     except Exception as exc:
         return jsonify({"connected": False, "error": str(exc)})

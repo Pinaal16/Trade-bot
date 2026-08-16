@@ -124,6 +124,11 @@
   </div>
 
   <div class="card">
+    <h2>Your track record</h2>
+    <div id="journal"><div class="empty">No closed trades yet.</div></div>
+  </div>
+
+  <div class="card">
     <h2>Open positions</h2>
     <div id="positions"><div class="empty">—</div></div>
   </div>
@@ -157,6 +162,21 @@ async function refreshAccount() {
       <div class="value ${cls(a.day_pl)}">${a.day_pl >= 0 ? "+" : ""}${money(a.day_pl)}</div></div>
     <div class="stat"><div class="label">Cash</div><div class="value">${money(a.cash)}</div></div>
     <div class="stat"><div class="label">Buying power</div><div class="value">${money(a.buying_power)}</div></div>`;
+
+  const j = r.journal || {};
+  document.getElementById("journal").innerHTML = j.trades ? `
+    <div class="stats">
+      <div class="stat"><div class="label">Closed trades</div><div class="value">${j.trades}</div></div>
+      <div class="stat"><div class="label">Win rate</div><div class="value">${j.win_rate.toFixed(0)}%</div></div>
+      <div class="stat"><div class="label">Expectancy / trade</div>
+        <div class="value ${cls(j.expectancy)}">${j.expectancy >= 0 ? "+" : ""}${money(j.expectancy)}</div></div>
+      <div class="stat"><div class="label">Total P/L</div>
+        <div class="value ${cls(j.total_pnl)}">${j.total_pnl >= 0 ? "+" : ""}${money(j.total_pnl)}</div></div>
+    </div>
+    <div class="reason" style="margin-top:10px">Compare expectancy against your backtest —
+      if live is much worse, slippage or missed fills are eating the edge.</div>`
+    : `<div class="empty">No closed trades yet${j.open ? ` (${j.open} open)` : ""}.
+       Your live expectancy will appear here to compare against the backtest.</div>`;
 
   document.getElementById("positions").innerHTML = r.positions.length ? `
     <table><tr><th>Symbol</th><th>Qty</th><th>Avg entry</th><th>Price</th><th>Value</th><th>P/L</th></tr>

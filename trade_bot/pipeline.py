@@ -15,6 +15,7 @@ import traceback
 from pathlib import Path
 from typing import Callable
 
+from . import journal
 from .analyst import Analyst, RefusalError
 from .broker import AlpacaBroker
 from .config import Config
@@ -126,11 +127,17 @@ def console_approver(paper: bool) -> Approver:
 
 
 def place_order(broker: AlpacaBroker, symbol: str, plan: dict, risk: dict) -> str:
-    """Submit the bracket order for an approved plan. Raises on failure."""
-    return broker.place_bracket(
+    """Submit the bracket order for an approved plan, and journal it.
+
+    Every execution path goes through here, so the journal can never silently
+    miss a trade.
+    """
+    order_id = broker.place_bracket(
         symbol=symbol, qty=risk["shares"], direction=plan["direction"],
         entry=plan["entry"], target=plan["target"], stop=plan["stop"],
     )
+    journal.record(symbol, plan, risk, order_id)
+    return order_id
 
 
 def _approve_and_execute(broker: AlpacaBroker, symbol: str, plan: dict,

@@ -45,6 +45,34 @@ The final output for every symbol is one of:
 - ❌ `REJECTED` — a hard risk check failed
 - ➖ `NO_SETUP` — nothing actionable right now
 
+## Start here: does this actually work?
+
+Before risking money, measure whether the strategy has an edge:
+
+```bash
+python backtest.py --universe sp100 --years 5 --equity 1500
+```
+
+This runs the strategy over 5 years and 40 symbols in a few minutes, for free
+(no API calls), and prints a verdict:
+
+| Verdict | What to do |
+|---|---|
+| `NO EDGE` | **Don't trade it.** You lose money per trade on average. |
+| `INSUFFICIENT DATA` | Widen `--universe` / `--years` until you have 30+ trades. |
+| `MARGINAL` | Profit factor too thin to survive real-world costs. |
+| `UNDERPERFORMS BUY & HOLD` | Holding the same symbols beat the work. Not a business. |
+| `PROMISING` | Permission to **paper trade** — not permission to go all in. |
+
+The backtest is deliberately pessimistic: signals fill at the *next* bar's open
+(never the close you just saw), a bar that spans both stop and target counts as
+a **stop**, gaps through your stop fill at the open, and slippage is charged on
+both sides. Position sizing calls the same `size_position()` the live bot uses,
+so what you test is what you trade.
+
+Backtests still flatter you — no emotions, perfect discipline, and whatever
+survivorship bias is in your symbol list. Treat a good number as a hypothesis.
+
 ## Setup
 
 ```bash
@@ -132,6 +160,8 @@ to keep the losing trades small, not to prevent them.
 | MONITOR  | `trade_bot/monitor.py`  | Interval loop around the pipeline |
 | UI       | `webapp.py` + `templates/` | Flask dashboard — scan, review, approve |
 | BROKER   | `trade_bot/broker.py`   | Alpaca bracket orders (paper by default) |
+| VALIDATE | `trade_bot/backtest.py` + `strategy.py` | Edge measurement over years of history, free |
+| TRACK    | `trade_bot/journal.py`  | Live trade log + expectancy vs the backtest |
 
 Notes on the Claude integration:
 
@@ -142,6 +172,36 @@ Notes on the Claude integration:
   same API call.
 - Trade plans are produced as **structured outputs** (JSON schema), so parsing
   never depends on prompt formatting.
+
+## Track record
+
+Every order placed — from the dashboard or the CLI — is written to
+`state/journal.jsonl` automatically, and the dashboard shows your live win
+rate, expectancy per trade and total P/L.
+
+**Compare live expectancy against your backtest expectancy.** That single
+comparison is the health check for the whole system:
+
+- Live ≈ backtest → the system is behaving as modelled.
+- Live materially worse → slippage, missed fills, or you're overriding signals.
+- Live negative over 30+ trades → stop. Don't add money to prove it right.
+
+## A realistic operating plan
+
+| Phase | Days | What you do |
+|---|---|---|
+| **1. Measure** | 1–7 | Run the backtest. If the verdict isn't `PROMISING`, fix the strategy or stop — this costs $0 and saves the tuition. |
+| **2. Debug** | 8–14 | Paper trade to catch execution problems (rejected orders, bad fills, wrong sizes). This validates plumbing, not strategy — the backtest did that. |
+| **3. Go live small** | 15–30 | Real money, `max_risk_per_trade_pct: 0.5` for the first month. Small enough that a losing streak is affordable, real enough that the psychology is real. |
+| **4. Review** | 30+ | Compare journal expectancy to backtest. Only raise risk after 30+ live trades confirm the edge. |
+
+Two rules worth more than any code here:
+
+1. **Deposit on a schedule, trade on signals.** Never take a trade because you
+   added money that day. Some days there is nothing worth doing.
+2. **Costs are fixed, your account is not.** Run the cheapest model that works
+   (`claude-haiku-4-5`) until the account is large enough that a better model's
+   monthly bill is under ~1% of equity.
 
 ## Disclaimer
 

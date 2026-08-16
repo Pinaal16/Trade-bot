@@ -14,6 +14,29 @@ from .config import AccountConfig, RiskConfig
 from .market_data import MarketSnapshot
 
 
+def size_position(equity: float, entry: float, stop: float,
+                  risk: RiskConfig) -> tuple[int, float]:
+    """Shares to buy and the dollar loss if the stop is hit.
+
+    Shared by the live risk engine and the backtest so that what you test is
+    exactly what you trade.
+    """
+    per_share_risk = abs(entry - stop)
+    if per_share_risk <= 0 or entry <= 0:
+        return 0, 0.0
+
+    budget = min(equity * risk.max_risk_per_trade_pct / 100,
+                 risk.max_loss_per_trade_usd)
+    shares = int(budget // per_share_risk)
+
+    # Never let one position dominate the account.
+    max_position_value = equity * risk.max_position_pct / 100
+    if shares * entry > max_position_value:
+        shares = int(max_position_value // entry)
+
+    return shares, shares * per_share_risk
+
+
 @dataclasses.dataclass
 class RiskCheck:
     name: str
@@ -64,30 +87,19 @@ class RiskEngine:
         equity = self.account.equity
         per_share_risk = abs(entry - stop)
 
-        # Position sizing: risk a fixed % of equity between entry and stop,
-        # capped by the absolute per-trade loss limit.
-        risk_budget = min(
-            equity * self.risk.max_risk_per_trade_pct / 100,
-            self.risk.max_loss_per_trade_usd,
-        )
-        shares = int(risk_budget // per_share_risk)
+        shares, dollar_risk = size_position(equity, entry, stop, self.risk)
         position_value = shares * entry
-        dollar_risk = shares * per_share_risk
 
         if shares < 1:
+            budget = min(equity * self.risk.max_risk_per_trade_pct / 100,
+                         self.risk.max_loss_per_trade_usd)
             checks.append(RiskCheck(
                 "position_size", False,
-                f"stop distance {per_share_risk:.2f} too wide for risk budget ${risk_budget:.0f} (0 shares)",
+                f"stop distance {per_share_risk:.2f} too wide for risk budget ${budget:.0f} (0 shares)",
             ))
         else:
-            max_position_value = equity * self.risk.max_position_pct / 100
-            if position_value > max_position_value:
-                # Shrink to the position cap rather than failing outright.
-                shares = int(max_position_value // entry)
-                position_value = shares * entry
-                dollar_risk = shares * per_share_risk
             checks.append(RiskCheck(
-                "position_size", shares >= 1,
+                "position_size", True,
                 f"{shares} shares (~${position_value:,.0f}, {position_value / equity * 100:.1f}% of equity)",
             ))
 
