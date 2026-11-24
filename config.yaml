@@ -1,7 +1,11 @@
 # Trade-bot configuration
 
 model:
-  id: claude-fable-5
+  # Haiku is the right default for a small account: ~$97/month at 30-minute
+  # scans vs ~$602 for Fable 5, and the quality gap on "is this a clean
+  # breakout" is small. Move up to claude-sonnet-5 once your balance is around
+  # $10k, so the bill stays near 1% of equity.
+  id: claude-haiku-4-5
   fallback: claude-opus-4-8   # server-side refusal fallback
   effort_signals: high        # depth for setup analysis / trade planning
   effort_news: medium         # depth for the news scan
