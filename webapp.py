@@ -9,7 +9,9 @@ Run:  python webapp.py       then open http://localhost:5000
 
 from __future__ import annotations
 
+import argparse
 import os
+import socket
 import sys
 import threading
 import webbrowser
@@ -177,8 +179,35 @@ def api_skip():
     return jsonify({"ok": True})
 
 
+DEFAULT_PORT = 8099   # deliberately off the beaten path (3000/5000/8000/8080)
+
+
+def _pick_port(host: str, preferred: int) -> int:
+    """Return `preferred` if it's free, otherwise the next free port after it."""
+    for port in range(preferred, preferred + 25):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            try:
+                probe.bind((host, port))
+            except OSError:
+                continue
+        if port != preferred:
+            print(f"⚠️  Port {preferred} is in use — using {port} instead.")
+        return port
+    raise SystemExit(f"No free port between {preferred} and {preferred + 24}.")
+
+
 def main() -> int:
     global _broker, _broker_error
+
+    parser = argparse.ArgumentParser(description="Trade-bot dashboard")
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT,
+                        help=f"port to serve on (default {DEFAULT_PORT}); "
+                             "if busy, the next free port is used")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="bind address (default 127.0.0.1, local only)")
+    parser.add_argument("--no-browser", action="store_true",
+                        help="don't open a browser window automatically")
+    args = parser.parse_args()
 
     config = load_config(CONFIG_PATH)
     if not config.broker.paper:
@@ -200,10 +229,13 @@ def main() -> int:
         print("⚠️  ANTHROPIC_API_KEY is not set — scans will fail until you set it.",
               file=sys.stderr)
 
-    url = "http://localhost:5000"
-    print(f"\n🌐 Dashboard: {url}\n")
-    threading.Timer(1.2, lambda: webbrowser.open(url)).start()
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    port = _pick_port(args.host, args.port)
+    url = f"http://{args.host}:{port}"
+    print(f"\n🌐 Dashboard: {url}")
+    print("   (Ctrl-C to stop)\n")
+    if not args.no_browser:
+        threading.Timer(1.2, lambda: webbrowser.open(url)).start()
+    app.run(host=args.host, port=port, debug=False)
     return 0
 
 

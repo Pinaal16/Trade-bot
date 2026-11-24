@@ -91,7 +91,15 @@ export ALPACA_API_KEY=...  ALPACA_SECRET_KEY=...   # paper keys to start
 python webapp.py
 ```
 
-Your browser opens on **http://localhost:5000** with:
+Your browser opens on **http://127.0.0.1:8099**. If that port is taken the
+server picks the next free one and tells you which. To choose yourself:
+
+```bash
+python webapp.py --port 9000      # pick a port
+python webapp.py --no-browser     # don't auto-open a browser
+```
+
+The page shows:
 
 - your account equity, today's P/L, cash and buying power
 - a **Run scan** button (edit the symbol list right in the page)
@@ -101,6 +109,7 @@ Your browser opens on **http://localhost:5000** with:
 - an **Approve & place order** button on approved setups only; nothing is
   ordered until you click it
 - your open positions and open orders, refreshed automatically
+- **Your track record** — live win rate and expectancy from the trade journal
 
 ## Usage — command line
 
