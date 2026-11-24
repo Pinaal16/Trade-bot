@@ -1,0 +1,38 @@
+# Trade-bot configuration
+
+model:
+  id: claude-fable-5
+  fallback: claude-opus-4-8   # server-side refusal fallback
+  effort_signals: high        # depth for setup analysis / trade planning
+  effort_news: medium         # depth for the news scan
+
+watchlist:
+  - NVDA
+  - AAPL
+  - MSFT
+  - TSLA
+  - SPY
+
+account:
+  equity: 25000            # account size in USD (used for position sizing)
+  open_exposure: 0.0       # current open position value in USD
+
+risk:
+  max_risk_per_trade_pct: 1.0    # max % of equity risked between entry and stop
+  max_position_pct: 20.0         # single position may not exceed this % of equity
+  max_total_exposure_pct: 60.0   # open exposure + new position cap, % of equity
+  max_drawdown_pct: 10.0         # halt approvals if equity is this far below peak
+  max_atr_pct: 8.0               # reject if 14-day ATR exceeds this % of price
+  max_loss_per_trade_usd: 500    # absolute cap on the dollar loss at the stop
+
+monitor:
+  interval_minutes: 30     # how often the --loop mode re-scans
+
+broker:
+  enabled: false           # or pass --trade on the command line
+  paper: true              # KEEP true until you have weeks of paper results.
+                           # false = real money; requires typing LIVE at startup.
+
+news:
+  enabled: true            # set false to skip web search entirely
+  max_searches: 3          # web_search max_uses per symbol

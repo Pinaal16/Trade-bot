@@ -1,0 +1,7 @@
+anthropic>=0.116.0
+yfinance>=0.2.40
+pandas>=2.0
+PyYAML>=6.0
+alpaca-py>=0.30.0
+
+Flask>=3.0

@@ -1,0 +1,296 @@
+{# Trade-bot dashboard — single-page UI, no external assets. #}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trade-bot Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel-2: #1e222b; --line: #2a2f3a;
+    --text: #e6e8ec; --muted: #9aa3b2;
+    --green: #35c46b; --red: #f2555a; --amber: #f0b429; --blue: #4c8dff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f6fa; --panel: #ffffff; --panel-2: #f0f2f7; --line: #dfe3ea;
+      --text: #171a21; --muted: #5d6675;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 20px; margin: 0; }
+  h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); font-weight: 600;
+       text-transform: uppercase; letter-spacing: .04em; }
+  .card { background: var(--panel); border: 1px solid var(--line);
+          border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+           margin-bottom: 18px; }
+  .badge { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+           letter-spacing: .04em; }
+  .badge.paper { background: rgba(76,141,255,.15); color: var(--blue); }
+  .badge.live  { background: rgba(242,85,90,.15);  color: var(--red); }
+  .stats { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .stat { background: var(--panel-2); border-radius: 10px; padding: 12px; }
+  .stat .label { font-size: 12px; color: var(--muted); }
+  .stat .value { font-size: 20px; font-weight: 650; margin-top: 2px; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  input[type=text] {
+    width: 100%; padding: 10px 12px; border-radius: 9px; font-size: 15px;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+  }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 600; border: 0; border-radius: 9px; cursor: pointer;
+    padding: 10px 18px; background: var(--blue); color: #fff;
+  }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+  button.approve { background: var(--green); }
+  label.check { display: flex; align-items: center; gap: 6px; color: var(--muted);
+                font-size: 14px; cursor: pointer; }
+  pre.log { background: var(--panel-2); border-radius: 9px; padding: 12px; margin: 12px 0 0;
+            max-height: 220px; overflow: auto; font-size: 13px; white-space: pre-wrap; }
+  .verdict { border-left: 4px solid var(--line); padding: 14px 16px; border-radius: 10px;
+             background: var(--panel-2); margin-bottom: 10px; }
+  .verdict.APPROVED  { border-left-color: var(--green); }
+  .verdict.WATCHLIST { border-left-color: var(--amber); }
+  .verdict.REJECTED  { border-left-color: var(--red); }
+  .verdict.NO_SETUP  { border-left-color: var(--muted); }
+  .verdict .top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .sym { font-size: 17px; font-weight: 700; }
+  .tag { font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+  .tag.APPROVED { color: var(--green); } .tag.WATCHLIST { color: var(--amber); }
+  .tag.REJECTED { color: var(--red); }  .tag.NO_SETUP { color: var(--muted); }
+  .reason { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .levels { display: grid; gap: 8px; margin-top: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+  .level { background: var(--panel); border-radius: 8px; padding: 8px 10px; }
+  .level .k { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .level .v { font-weight: 650; }
+  .actions { margin-top: 12px; display: flex; gap: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; color: var(--muted); font-size: 12px; text-transform: uppercase;
+       padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 8px; border-bottom: 1px solid var(--line); }
+  .empty { color: var(--muted); font-size: 14px; }
+  .disclaimer { color: var(--muted); font-size: 13px; text-align: center; margin-top: 24px; }
+  .warn { background: rgba(240,180,41,.12); border: 1px solid rgba(240,180,41,.35);
+          color: var(--amber); border-radius: 9px; padding: 10px 12px; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>📈 Trade-bot</h1>
+    <span class="badge {{ 'paper' if paper else 'live' }}">
+      {{ 'PAPER TRADING' if paper else '⚠ LIVE TRADING' }}
+    </span>
+  </header>
+
+  {% if broker_error %}
+  <div class="card warn">
+    Broker not connected: {{ broker_error }}<br>
+    You can still run analysis — approve buttons stay disabled until it connects.
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Account</h2>
+    <div id="account" class="stats"><div class="empty">Loading…</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Scan for setups</h2>
+    <div class="row" style="margin-bottom:10px">
+      <input type="text" id="symbols" value="{{ watchlist|join(', ') }}"
+             placeholder="NVDA, AAPL, MSFT">
+    </div>
+    <div class="row">
+      <button id="scanBtn" onclick="startScan()">🔍 Run scan</button>
+      <label class="check"><input type="checkbox" id="news" checked> include news search</label>
+    </div>
+    <pre class="log" id="log" hidden></pre>
+  </div>
+
+  <div class="card">
+    <h2>Results</h2>
+    <div id="results"><div class="empty">No scan yet — hit “Run scan”.</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Your track record</h2>
+    <div id="journal"><div class="empty">No closed trades yet.</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Open positions</h2>
+    <div id="positions"><div class="empty">—</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Open orders</h2>
+    <div id="orders"><div class="empty">—</div></div>
+  </div>
+
+  <p class="disclaimer">
+    Research and decision-support only — not financial advice. Every order requires
+    your approval, and no result here is a guarantee of profit.
+  </p>
+</div>
+
+<script>
+const money = n => (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const cls = n => n > 0 ? "pos" : n < 0 ? "neg" : "";
+
+async function refreshAccount() {
+  const r = await (await fetch("/api/account")).json();
+  const box = document.getElementById("account");
+  if (!r.connected) {
+    box.innerHTML = `<div class="empty">Not connected${r.error ? ": " + r.error : ""}</div>`;
+    return;
+  }
+  const a = r.account;
+  box.innerHTML = `
+    <div class="stat"><div class="label">Equity</div><div class="value">${money(a.equity)}</div></div>
+    <div class="stat"><div class="label">Today's P/L</div>
+      <div class="value ${cls(a.day_pl)}">${a.day_pl >= 0 ? "+" : ""}${money(a.day_pl)}</div></div>
+    <div class="stat"><div class="label">Cash</div><div class="value">${money(a.cash)}</div></div>
+    <div class="stat"><div class="label">Buying power</div><div class="value">${money(a.buying_power)}</div></div>`;
+
+  const j = r.journal || {};
+  document.getElementById("journal").innerHTML = j.trades ? `
+    <div class="stats">
+      <div class="stat"><div class="label">Closed trades</div><div class="value">${j.trades}</div></div>
+      <div class="stat"><div class="label">Win rate</div><div class="value">${j.win_rate.toFixed(0)}%</div></div>
+      <div class="stat"><div class="label">Expectancy / trade</div>
+        <div class="value ${cls(j.expectancy)}">${j.expectancy >= 0 ? "+" : ""}${money(j.expectancy)}</div></div>
+      <div class="stat"><div class="label">Total P/L</div>
+        <div class="value ${cls(j.total_pnl)}">${j.total_pnl >= 0 ? "+" : ""}${money(j.total_pnl)}</div></div>
+    </div>
+    <div class="reason" style="margin-top:10px">Compare expectancy against your backtest —
+      if live is much worse, slippage or missed fills are eating the edge.</div>`
+    : `<div class="empty">No closed trades yet${j.open ? ` (${j.open} open)` : ""}.
+       Your live expectancy will appear here to compare against the backtest.</div>`;
+
+  document.getElementById("positions").innerHTML = r.positions.length ? `
+    <table><tr><th>Symbol</th><th>Qty</th><th>Avg entry</th><th>Price</th><th>Value</th><th>P/L</th></tr>
+    ${r.positions.map(p => `<tr>
+      <td><b>${p.symbol}</b></td><td>${p.qty}</td><td>${money(p.avg_entry)}</td>
+      <td>${money(p.current_price)}</td><td>${money(p.market_value)}</td>
+      <td class="${cls(p.unrealized_pl)}">${p.unrealized_pl >= 0 ? "+" : ""}${money(p.unrealized_pl)}
+        (${p.unrealized_pl_pct.toFixed(1)}%)</td></tr>`).join("")}</table>`
+    : `<div class="empty">No open positions.</div>`;
+
+  document.getElementById("orders").innerHTML = r.orders.length ? `
+    <table><tr><th>Symbol</th><th>Side</th><th>Qty</th><th>Type</th><th>Limit</th><th>Status</th></tr>
+    ${r.orders.map(o => `<tr><td><b>${o.symbol}</b></td><td>${o.side}</td><td>${o.qty}</td>
+      <td>${o.type}</td><td>${o.limit_price ? money(o.limit_price) : "—"}</td>
+      <td>${o.status}</td></tr>`).join("")}</table>`
+    : `<div class="empty">No open orders.</div>`;
+}
+
+async function startScan() {
+  const symbols = document.getElementById("symbols").value.split(",").map(s => s.trim()).filter(Boolean);
+  const news = document.getElementById("news").checked;
+  const btn = document.getElementById("scanBtn");
+  btn.disabled = true; btn.textContent = "⏳ Scanning…";
+  document.getElementById("log").hidden = false;
+
+  const res = await fetch("/api/scan", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({symbols, news}),
+  });
+  if (!res.ok) {
+    const e = await res.json();
+    alert(e.error || "Could not start scan");
+    btn.disabled = false; btn.textContent = "🔍 Run scan";
+    return;
+  }
+  poll();
+}
+
+async function poll() {
+  const s = await (await fetch("/api/scan/status")).json();
+  const log = document.getElementById("log");
+  if (s.log.length) {
+    log.hidden = false;
+    log.textContent = s.log.join("\n");
+    log.scrollTop = 1e6;
+  }
+  if (s.results.length) render(s.results);
+
+  // Keep the button in sync even when the page was reloaded mid-scan.
+  const btn = document.getElementById("scanBtn");
+  btn.disabled = s.running;
+  btn.textContent = s.running ? "⏳ Scanning…" : "🔍 Run scan";
+
+  if (s.running) { setTimeout(poll, 1200); return; }
+  refreshAccount();
+}
+
+function render(results) {
+  document.getElementById("results").innerHTML = results.map(r => {
+    const v = r.decision?.verdict || "NO_SETUP";
+    const plan = r.plan || {}, risk = r.risk;
+    let levels = "";
+    if (plan.entry) {
+      levels = `<div class="levels">
+        <div class="level"><div class="k">🎯 Entry</div><div class="v">${plan.entry}</div></div>
+        <div class="level"><div class="k">💰 Target</div><div class="v">${plan.target}</div></div>
+        <div class="level"><div class="k">🛑 Stop</div><div class="v">${plan.stop}</div></div>
+        ${risk ? `<div class="level"><div class="k">Size</div><div class="v">${risk.shares} sh</div></div>
+        <div class="level"><div class="k">Max loss</div><div class="v">${money(risk.dollar_risk)}</div></div>` : ""}
+      </div>
+      ${plan.invalidation ? `<div class="reason">⚠️ Invalidation: ${plan.invalidation}</div>` : ""}`;
+    }
+    let actions = "";
+    if (r.pending_approval) {
+      actions = `<div class="actions">
+        <button class="approve" onclick="approve('${r.symbol}')">✅ Approve &amp; place order</button>
+        <button class="ghost" onclick="skip('${r.symbol}')">Skip</button></div>`;
+    } else if (r.order_id) {
+      actions = `<div class="reason">📬 Order placed — id ${r.order_id}</div>`;
+    } else if (r.skipped) {
+      actions = `<div class="reason">⏭️ Skipped — no order placed.</div>`;
+    }
+    return `<div class="verdict ${v}">
+      <div class="top"><span class="sym">${r.symbol}</span>
+        <span class="tag ${v}">${v.replace("_", " ")}</span>
+        ${plan.setup_type ? `<span class="reason">${plan.setup_type}</span>` : ""}</div>
+      <div class="reason">${r.decision?.reason || ""}</div>
+      ${levels}${actions}</div>`;
+  }).join("");
+}
+
+async function approve(symbol) {
+  if (!confirm(`Place the order for ${symbol}?`)) return;
+  const r = await (await fetch("/api/approve", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({symbol}),
+  })).json();
+  if (!r.ok) { alert("Order failed: " + r.error); return; }
+  poll();
+}
+
+async function skip(symbol) {
+  await fetch("/api/skip", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({symbol}),
+  });
+  poll();
+}
+
+// On load, pick up any scan already in progress or finished — so a page
+// refresh never loses pending approvals.
+poll();
+refreshAccount();
+setInterval(refreshAccount, 30000);
+</script>
+</body>
+</html>
