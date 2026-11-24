@@ -212,6 +212,42 @@ Two rules worth more than any code here:
    (`claude-haiku-4-5`) until the account is large enough that a better model's
    monthly bill is under ~1% of equity.
 
+## Legal and compliance
+
+Not legal or tax advice — but these are the points that actually matter for a
+tool like this:
+
+**Trading your own money with your own software is legal.** No licence or
+registration is required to automate your personal account.
+
+**Don't advise others or trade their money.** The moment you accept someone
+else's funds, publish signals for payment, or manage an account that isn't
+yours, you move into regulated territory (in the US, investment-adviser or
+broker-dealer registration). This tool is built for one person trading their
+own account, and the output is explicitly labelled as research, not advice.
+
+**Pattern Day Trader rule — this one can bite a small account.** Under FINRA
+rules, a margin account under **$25,000** that makes 4 or more *day trades*
+(open and close the same stock the same day) in 5 rolling business days gets
+flagged and restricted for 90 days. This strategy is a swing strategy — it
+holds positions for days, not hours — so it shouldn't trip the rule, but don't
+start manually closing trades the same day you open them. Using a cash account
+avoids PDT entirely, at the cost of settlement delays.
+
+**Market data.** `yfinance` pulls Yahoo Finance data, which is fine for
+personal use but not licensed for redistribution or commercial products. If
+this ever becomes a business, move to a licensed feed (Alpaca's own market
+data, Polygon, IEX Cloud).
+
+**Taxes.** Trading profits are taxable, and frequent trading usually means
+short-term capital gains at your ordinary income rate. `state/journal.jsonl`
+is your record — keep it. Wash-sale rules apply if you rebuy a loser within
+30 days.
+
+**API terms.** Anthropic's usage policies apply to the LLM calls; Alpaca's
+customer agreement applies to the brokerage account. Both permit exactly this
+kind of personal automation.
+
 ## Disclaimer
 
 This software is for research and education. Markets involve risk of loss.
